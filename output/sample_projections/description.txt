@@ -1,0 +1,1 @@
+The sample is made of uniform hard spheres with a radius of 1.5 nm. The concentration of spheres is 0.005 per nm^3. This corresponds to an average of 20.944 spheres per sample volume, a volume fraction of 0.070686, and a molar concentration of 8.3027 mM. The scale bar shows 2.0 nm.
