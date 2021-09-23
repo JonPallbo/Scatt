@@ -3,7 +3,7 @@ module Scatt
 ##########################################################################
 
 module Auxiliaries
-export read_data_from_file, save_data_to_file!
+export read_data_from_file, save_data_to_file
 
 function read_data_from_file(FileName::String)
 	
@@ -29,7 +29,7 @@ function read_data_from_file(FileName::String)
 	
 end
 
-function save_data_to_file!(data::Tuple{Array{Float64, 1}, Array{Float64, 1}}, outputFileName::String)
+function save_data_to_file(data::Tuple{Array{Float64, 1}, Array{Float64, 1}}, outputFileName::String)
 	
 	io = open(outputFileName, "a")
 	if isempty(read(outputFileName, String))
@@ -62,25 +62,24 @@ using ..Auxiliaries, FFTW, Interpolations
 function expand_data(data::Tuple{Array{Float64, 1}, Array{Float64, 1}}, qValues::Array{Float64, 3})
 	
 	intensity = zeros(size(qValues))
-	intensity[:] = LinearInterpolation(data[1], data[2]; extrapolation_bc = Line())[qValues[:]]
-	midpoint = Int((size(qValues, 1)-1)/2 + 1)
-	intensity[abs.(qValues) .> abs(qValues[end, midpoint, midpoint])] .= 0
+	intensity[:] = LinearInterpolation(data[1], data[2]; extrapolation_bc = ((Line(), Flat()),))[qValues[:]]
 	
 	return intensity::Array{Float64, 3}
 	
 end
 
-function finitize_data(filePath::String)
+function finitize_data(filePath::String, qRange::Array{Float64, 1}, sampleRadiusNm::Float64)
 	
 	data = read_data_from_file(filePath)
-	(qs, ints) = finitize_data(data, 10 .^ (-1:0.01:1))
-	save_data_to_file!((qs, ints), "../output/calculated_finitized.data")
+	(qs, ints) = finitize_data(data, qRange, sampleRadiusNm)
+	rm("../output/finitized.data"; force = true)
+	save_data_to_file((qs, ints), "../output/finitized.data")
 	
 	return nothing
 	
 end
 
-function finitize_data(data::Tuple{Array{Float64, 1}, Array{Float64, 1}}, qs::Array{Float64, 1})
+function finitize_data(data::Tuple{Array{Float64, 1}, Array{Float64, 1}}, qs::Array{Float64, 1}, sampleRadiusNm::Float64)
 	
 	println("\nFinitizing data...")
 	
@@ -101,18 +100,18 @@ function finitize_data(data::Tuple{Array{Float64, 1}, Array{Float64, 1}}, qs::Ar
 		
 	end
 	
-	px_per_inv_nm = 20
+	scale = 1
+	r = sampleRadiusNm
+	background = 0
 	
-	sideLength = 451
+	px_per_inv_nm = round(Int, 2*r)
+	
+	sideLength = 401
 	x1 = repeat(1:sideLength, 1, sideLength, sideLength)
 	x2 = permutedims(x1, [2 1 3])
 	x3 = permutedims(x1, [3 2 1])
 	midpoint = Int((sideLength-1)/2 + 1)
 	q = sqrt.( (x1.-midpoint).^2 + (x2.-midpoint).^2 + (x3.-midpoint).^2 ) ./ px_per_inv_nm # nm^-1
-	
-	scale = 1
-	r = 10 # nm
-	background = 0
 	
 	qr = q .* r
 	mask = scale .* ((3*1).*(sin.(qr) - qr .* cos.(qr)) ./ qr.^3).^2 .+ background # nm^2
@@ -120,8 +119,7 @@ function finitize_data(data::Tuple{Array{Float64, 1}, Array{Float64, 1}}, qs::Ar
 	
 	mask[abs.(q .* r) .> 98.950063] .= 0
 	
-	maskSum = sum(mask)
-	mask = mask ./ maskSum
+	mask = mask ./ sum(mask)
 	
 	intensity = expand_data(data, q)
 	
@@ -154,10 +152,10 @@ end # Finitizer
 ##########################################################################
 
 module Scatterer
-export get_sampsum_for_offset, measure!
+export get_sampsum_for_offset, measure
 using Serialization
 
-function load_meta!(samplePath::String)
+function load_meta(samplePath::String)
 	
 	let dataString = read(samplePath*"scale.meta", String)
 		
@@ -220,9 +218,9 @@ function get_intensity(sample::Array{Float16, 3}, probe::Array{Complex{Float16},
 	
 end
 
-function measure!(samplePath::String)
+function measure(samplePath::String)
 	
-	load_meta!(samplePath)
+	load_meta(samplePath)
 	
 	sampleVolume = (4 * pi * SAMPLE_RADIUS_NM^3 / 3)
 	
@@ -289,6 +287,8 @@ function measure!(samplePath::String)
 		
 	end
 	
+	return nothing
+	
 end
 
 end # Scatterer
@@ -296,10 +296,10 @@ end # Scatterer
 ##########################################################################
 
 module Plotter
-export make_plot!
+export make_plot
 using ..Auxiliaries, ..Finitizer, Plots
 
-function make_plot!()
+function make_plot()
 	
 	gr()
 	
@@ -310,6 +310,7 @@ function make_plot!()
 		seriestype = :scatter,
 		xaxis = :log,
 		yaxis = :log,
+		minorgrid = true,
 		markershape = :circle,
 		markersize = 2,
 		markercolor = RGB(0, 0, 1),
@@ -322,7 +323,7 @@ function make_plot!()
 		lab = "Simulated",
 		framestyle = :box)
 	
-	(qValues, intensities) = read_data_from_file("../output/calculated_finitized.data")
+	(qValues, intensities) = read_data_from_file("../output/finitized.data")
 	plot!(qValues, intensities;
 		seriestype = :line,
 		linewidth = 3,
@@ -331,6 +332,8 @@ function make_plot!()
 		lab = "Calculated")
 	
 	savefig(plt, "../output/figure.pdf")
+	
+	return nothing
 	
 end
 

@@ -3,7 +3,7 @@ module SampleMaker
 ##########################################################################
 
 module Tools
-export make_hard_sphere_samples, set_sld_offsets!, sld_scan
+export make_hard_sphere_samples, set_sld_offsets, sld_scan
 using FileIO, ColorTypes, Serialization
 
 global const PX_PER_NM = 10
@@ -88,7 +88,7 @@ function sampRms_for_offset(samplePath::String, offset::Float64)
 	
 end
 
-function set_scale!()
+function set_scale()
 	io = open("sample/scale.meta", "w")
 	println(io, "Pixels per nanometer: ", PX_PER_NM)
 	println(io, "Sample radius in nanometers: ", SAMPLE_RADIUS_NM)
@@ -96,7 +96,7 @@ function set_scale!()
 	return nothing
 end
 
-function set_sld_offsets!(targetIntensity::Float64)
+function set_sld_offsets(targetIntensity::Float64)
 	
 	println("\nSetting SLD offsets...")
 	
@@ -146,7 +146,7 @@ function offset_scan(offsets::AbstractRange{Float64})
 	return intensities::Array{Float64, 1}
 end
 
-function write_sample_files!(sample::Array{Float16, 3}, id::String)
+function write_sample_files(sample::Array{Float16, 3}, id::String)
 	
 	function extract_image_from_file(fileName::String)
 		if !isfile(fileName)
@@ -225,7 +225,7 @@ function make_hard_sphere_samples(numOfSamples::Int, numOfSpheresPerNm3::Float64
 	
 	numOfSpheres = boxVolumeNm3 * numOfSpheresPerNm3
 	
-	set_scale!()
+	set_scale()
 	
 	io = open("sample/description.txt", "w")
 	print(io, "The sample is made of uniform hard spheres with a radius of ", round(sphereRadiusNm; sigdigits = 5), " nm.")
@@ -246,23 +246,24 @@ function make_hard_sphere_samples(numOfSamples::Int, numOfSpheresPerNm3::Float64
 		
 		sample = empty_sample()
 		
-		sideRange = 101-Int(boxSideLength/2):101+Int(boxSideLength/2)
+		midpoint = 101
+		sideRange = midpoint-Int(boxSideLength/2):midpoint+Int(boxSideLength/2)
 		for i in 1:poisson(numOfSpheres)
 			sphereCenter = (rand(sideRange), rand(sideRange), rand(sideRange))
 			newSample = sample + sphere(sphereCenter, sphereRadius)
 			while maximum(newSample) > 1
 				sphereCenter = (rand(sideRange), rand(sideRange), rand(sideRange))
-				dist = sqrt.( (101-sphereCenter[1]).^2 + (101-sphereCenter[2]).^2 + (101-sphereCenter[3]).^2 )
+				dist = sqrt.( (midpoint-sphereCenter[1]).^2 + (midpoint-sphereCenter[2]).^2 + (midpoint-sphereCenter[3]).^2 )
 				while dist > SAMPLE_RADIUS_PX - sphereRadius
 					sphereCenter = (rand(sideRange), rand(sideRange), rand(sideRange))
-					dist = sqrt.( (101-sphereCenter[1]).^2 + (101-sphereCenter[2]).^2 + (101-sphereCenter[3]).^2 )
+					dist = sqrt.( (midpoint-sphereCenter[1]).^2 + (midpoint-sphereCenter[2]).^2 + (midpoint-sphereCenter[3]).^2 )
 				end
 				newSample = sample + sphere(sphereCenter, sphereRadius)
 			end
 			sample = deepcopy(newSample)
 		end
 		
-		write_sample_files!(sample, string(n, pad = 5))
+		write_sample_files(sample, string(n, pad = 5))
 		
 	end
 	

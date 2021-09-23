@@ -1,7 +1,7 @@
 module Model
-export make_model_data!
+export make_model_data
 
-#using Plots ###
+#using Plots
 
 function calculate_data(scale::Float64, r::Float64)
 	
@@ -30,8 +30,8 @@ function calculate_data(scale::Float64, r::Float64)
 	
 	S = (Y ./ c) ./ (X.^2 + Y.^2)
 	
-	#gr() ###
-	#global plt = plot(q, intensity; xaxis = :log, yaxis = :log) ###
+	#gr()
+	#global plt = plot(q, intensity; xaxis = :log, yaxis = :log)
 	
 	intensity = S .* intensity
 	
@@ -41,7 +41,7 @@ function calculate_data(scale::Float64, r::Float64)
 	
 end
 
-function save_data_to_file!(data::Tuple{Array{Float64, 1}, Array{Float64, 1}}, outputFileName::String)
+function save_data_to_file(data::Tuple{Array{Float64, 1}, Array{Float64, 1}}, outputFileName::String)
 	
 	io = open(outputFileName, "w")
 	if isempty(read(outputFileName, String))
@@ -63,9 +63,9 @@ function save_data_to_file!(data::Tuple{Array{Float64, 1}, Array{Float64, 1}}, o
 	
 end
 
-function make_model_data!(scale::Float64, r::Float64)
+function make_model_data(scale::Float64, r::Float64)
 	
-	save_data_to_file!(calculate_data(scale::Float64, r::Float64), "calculated.data")
+	save_data_to_file(calculate_data(scale::Float64, r::Float64), "calculated.data")
 	
 	return nothing
 	
